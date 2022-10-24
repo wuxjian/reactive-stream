@@ -273,6 +273,7 @@ Mono.just(params)
 直接消费的 Mono 或 Flux 的方式就是调用 subscribe() 方法。如果在 WebFlux 接口中开发，直接返回 Mono 或 Flux 即可。WebFlux 框架会完成最后的 Response 输出工作。
 
 ### 并发执行
+```Java
 Mono.zip(item1Mono, item2Mono).map(tuple -> {
     CustomType1 item1 = tuple.getT1();
     CustomType2 item2 = tuple.getT2();
@@ -280,5 +281,5 @@ Mono.zip(item1Mono, item2Mono).map(tuple -> {
     return mergeResult;
 });
 
-
+```
 **接口的响应时间并不会因为使用了 WebFlux 而缩短，服务端的处理结果还是得由 worker 线程处理完成之后再返回给前端。**
