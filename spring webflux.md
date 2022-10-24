@@ -25,7 +25,7 @@ Servlet容器有专门的线程池用于管理HTTP请求，每个请求对应一
 ### 非阻塞式IO(NIO)
 ![网页捕获_24-10-2022_164947_blog.51cto.com.jpeg](.\网页捕获_24-10-2022_164947_blog.51cto.com.jpeg)
 接口A发起调用接口B的请求后就立即返回，而不用阻塞等待接口B响应，这样的好处是线程可以马上得到复用，接着处理下一个前端请求的任务，如果接口B处理完返回数据后，会有一个回调线程池处理真正的响应，即这种模式下我们的业务流程是http线程只处理请求，回调线程处理接口响应。
-
+```Java
 Futures.addCallback(listenableFuture, new FutureCallback<String>() { 
     @Override public void onSuccess(String result) { 
         System.out.println("异步结果:" + result); } 
@@ -33,6 +33,7 @@ Futures.addCallback(listenableFuture, new FutureCallback<String>() {
             t.printStackTrace(); }
         }, executor
     );
+```
 回调机制的最大问题是：Callback Hell（回调地狱）
 ![网页捕获_24-10-2022_17155_](.\网页捕获_24-10-2022_17155_.jpeg)
 1. 大量使用 Callback 机制，使应该是先后的业务逻辑在代码形式上表现为层层嵌套，这会导致代码难以理解和维护
@@ -66,17 +67,19 @@ Futures.addCallback(listenableFuture, new FutureCallback<String>() {
 
 反应式流（Reactive Stream） 就是反应式编程相关的规范，在 Java 平台上，由Netflix（开发了 RxJava）、TypeSafe（开发了 Scala、Akka）、Pivatol（开发了 Spring、Reactor）共同制定。
 https://www.reactive-streams.org/
-### Java 9提供的Flow API 的响应式编程的接口规范，包含以下四个接口
+
+#### 响应式库有哪些
+1. RxJava
+2. Reactor
+3. Akka
+
+#### Java 9提供的Flow API 的响应式编程的接口规范，包含以下四个接口
 
 1. Publisher：发布者，负责发布消息；
 2. Subscriber：订阅者，负责订阅处理消息；
 3. Subscription：订阅控制类，可用于发布者和订阅者之间通信；
 4. Processor：处理者，同时充当Publisher和Subscriber的角色
 
-#### 响应式库有哪些
-1. RxJava
-2. Reactor
-3. Akka
 
 Publisher
 
@@ -199,8 +202,9 @@ Reactor 就是 Spring WebFlux 的首选 反应式库。
 在上面的概念中，大家最重要是要记住 Flux 和 Mono 这两个 Reactor 的核心类：
 
 **Mono：实现发布者 Publisher，并返回 0 或 1 个元素。**
-
+![20210313180709388.png](.\20210313180709388.png)
 **Flux：实现发布者 Publisher，并返回 N 个元素。**
+![2021031318064743.png](.\2021031318064743.png)
 **两个都是发布者 Publisher。**
 
 #### Reactive Stream、Reactor 和 WebFlux 关系
@@ -239,8 +243,20 @@ Flux<String> fewWords = Flux.just("Hello", "World");
 Flux<String> manyWords = Flux.fromIterable(words);
 ```
 ### 2. 处理 Mono 和 Flux（中间阶段）
-中间阶段的 Mono 和 Flux 的方法主要有 filter、map、flatMap、then、zip、reduce
+中间阶段的 Mono 和 Flux 的方法主要有 filter、map、flatMap、then、zip、reduce、filter
 传统的命令式编程
+map
+![20210313180810668](./20210313180810668.png)
+
+flatMap
+![20210313180825533](./20210313180825533.png)
+
+filter
+![20210313180840657](./20210313180840657.png)
+
+zip
+![20210313180855938](./20210313180855938.png)
+
 ```Java
 Object result1 = doStep1(params);
 Object result2 = doStep2(result1);
