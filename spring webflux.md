@@ -274,7 +274,7 @@ public Mono<String> hello() {
 }
 ```
 最大的变化就是返回值从 Object 所表示的一个对象变为 Mono<Object> 或 Flux<Object>
-反应式要求整个链接都是响应式的，不能再使用以前的mybatis redis 
+反应式要求整个链路都是响应式的，不能再使用以前的mybatis redis 
 应当使用 spring-boot-starter-data-r2dbc、spring-boot-starter-data-redis-reactive
 ![搜狗截图20221025093543.png](./搜狗截图20221025093543.png)
 ![搜狗截图20221025094152.png](./搜狗截图20221025094152.png)
