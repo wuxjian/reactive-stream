@@ -6,7 +6,7 @@
 
 Servlet容器有专门的线程池用于管理HTTP请求，每个请求对应一个线程，该线程负责该请求的整
 个生命周期（Thread per Request模型）。意味着应用仅能处理并发数为线程池大小的请求。可以配置
-更大的线程池，但是线程占用内存（默认一个线程1MB的样子），线程数越多，占用的内存越大。  
+更大的线程池，但是线程占用内存（默认一个线程1MB），线程数越多，占用的内存越大。  
 
 `maxThread`：tomcat的`maxThread`指的是处理业务的最大线程数，位于Connector组件的层次，在springboot中由`server.tomcat.max-threads`参数决定，默认是200
 
@@ -20,27 +20,67 @@ Servlet容器有专门的线程池用于管理HTTP请求，每个请求对应一
 
 2 提高并发需要加大线程池大小
 
-3 压垮客户端:服务A请求服务B的数据，如果数据量很大，超过了服务A能处理的程度，则导致服务OOM。  
+3 压垮客户端:服务A请求服务B的数据，如果数据量很大，超过了服务A能处理的程度，则导致A挂掉。  
 
-### 非阻塞式IO(NIO)
+### 异步编程（使用非阻塞式IO(NIO)）
 ![网页捕获_24-10-2022_164947_blog.51cto.com.jpeg](.\网页捕获_24-10-2022_164947_blog.51cto.com.jpeg)
 接口A发起调用接口B的请求后就立即返回，而不用阻塞等待接口B响应，这样的好处是线程可以马上得到复用，接着处理下一个前端请求的任务，如果接口B处理完返回数据后，会有一个回调线程池处理真正的响应，即这种模式下我们的业务流程是http线程只处理请求，回调线程处理接口响应。
 ```Java
-Futures.addCallback(listenableFuture, new FutureCallback<String>() { 
-    @Override public void onSuccess(String result) { 
-        System.out.println("异步结果:" + result); } 
-        @Override public void onFailure(Throwable t) { 
-            t.printStackTrace(); }
-        }, executor
-    );
+userService.getFavorites(userId, new Callback<List<String>>() { 
+  public void onSuccess(List<String> list) { 
+    if (list.isEmpty()) { 
+      suggestionService.getSuggestions(new Callback<List<Favorite>>() {
+        public void onSuccess(List<Favorite> list) { 
+          UiUtils.submitOnUiThread(() -> { 
+            list.stream()
+                .limit(5)
+                .forEach(uiList::show); 
+            });
+        }
+
+        public void onError(Throwable error) { 
+          UiUtils.errorPopup(error);
+        }
+      });
+    } else {
+      list.stream() 
+          .limit(5)
+          .forEach(favId -> favoriteService.getDetails(favId, 
+            new Callback<Favorite>() {
+              public void onSuccess(Favorite details) {
+                UiUtils.submitOnUiThread(() -> uiList.show(details));
+              }
+
+              public void onError(Throwable error) {
+                UiUtils.errorPopup(error);
+              }
+            }
+          ));
+    }
+  }
+
+  public void onError(Throwable error) {
+    UiUtils.errorPopup(error);
+  }
+});
+
 ```
 回调机制的最大问题是：Callback Hell（回调地狱）
+大量使用 Callback 机制，使应该是先后的业务逻辑在代码形式上表现为层层嵌套，这会导致代码难以理解和维护
 ![网页捕获_24-10-2022_17155_](.\网页捕获_24-10-2022_17155_.jpeg)
-1. 大量使用 Callback 机制，使应该是先后的业务逻辑在代码形式上表现为层层嵌套，这会导致代码难以理解和维护
-2. 代码的字面形式和其所表达的业务含义不匹配
-3. 业务的先后关系在代码层面变成了包含和被包含的关系
+
+
 
 那么如何解决 Callback Hell 问题呢？ 响应式编程
+```
+userService.getFavorites(userId)  // 获取到集合数据流 1
+           .flatMap(favoriteService::getDetails) // 获取喜欢的服务 2
+           .switchIfEmpty(suggestionService.getSuggestions()) // 如果为空进行处理 suggestionService.getSuggestions() 3
+           .take(5) // 只拿执行流中的5个 4 
+           .publishOn(UiUtils.uiThreadScheduler()) // 发布到 UI 线程中进行处理 5
+           .subscribe(uiList::show, UiUtils::errorPopup);  // 订阅处理结果 6
+```
+
 
 
 ### 响应式编程
@@ -73,12 +113,11 @@ https://www.reactive-streams.org/
 2. Reactor
 3. Akka
 
-#### Java 9提供的Flow API 的响应式编程的接口规范，包含以下四个接口
+#### Java 9提供的Flow API 的响应式编程的接口规范，包含以下三个接口
 
 1. Publisher：发布者，负责发布消息；
 2. Subscriber：订阅者，负责订阅处理消息；
 3. Subscription：订阅控制类，可用于发布者和订阅者之间通信；
-4. Processor：处理者，同时充当Publisher和Subscriber的角色
 
 
 Publisher
@@ -235,6 +274,12 @@ public Mono<String> hello() {
 }
 ```
 最大的变化就是返回值从 Object 所表示的一个对象变为 Mono<Object> 或 Flux<Object>
+反应式要求整个链接都是响应式的，不能再使用以前的mybatis redis 
+应当使用 spring-boot-starter-data-r2dbc、spring-boot-starter-data-redis-reactive
+![搜狗截图20221025093543.png](./搜狗截图20221025093543.png)
+![搜狗截图20221025094152.png](./搜狗截图20221025094152.png)
+
+
 
 ### 1. Mono和Flux的创建
 ```Java
